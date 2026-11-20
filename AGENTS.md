@@ -11,6 +11,11 @@ uv run python -m app.garmin login              # one-off Garmin login (prompts f
 uv run python -m app.garmin sync               # same as the Refresh button
 ```
 
+- **Phone access (private, free, works away from home)**: install Tailscale on the Mac and the phone, sign in to the same
+  account, keep the app on `127.0.0.1` and run `tailscale serve --bg 8000`. It prints an `https://<mac>.<tailnet>.ts.net`
+  URL that only your devices can open. Set `COOKIE_SECURE=1` in `.env` when using it. The Mac must be awake and the
+  server running. Same-Wi-Fi quick test only: `uvicorn ... --host 0.0.0.0` then `http://<mac-lan-ip>:8000` (plain HTTP,
+  anyone on that network can reach the login page; do not leave it like this).
 - Env `DASHBOARD_PASSWORD`: turns on the single-password login (`app/auth.py`). Unset = no login (localhost only; a
   warning is logged). Copy `.env.example` to `.env` (gitignored). Also `SESSION_SECRET`, `COOKIE_SECURE=1`.
 - Env `SYNC_INTERVAL_MIN` (default 30, `0` = off): background Garmin sync while the server runs.
