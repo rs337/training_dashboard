@@ -109,6 +109,10 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
         age = _minutes_since_sync(conn)
         ctx.setdefault("last_sync_at", get_meta(conn, "last_sync_at"))
         ctx.setdefault("sync_error", get_meta(conn, "last_sync_error") or "")
+        this_week = plan.monday(date.today()).isoformat()  # the phone tab bar links straight to it
+        if not conn.execute("SELECT 1 FROM plan_weeks WHERE week_start = ?", (this_week,)).fetchone():
+            this_week = None
+        ctx.setdefault("this_week", this_week)
     ctx.setdefault("sync_stale", age is None or age > STALE_AFTER_MIN)
     ctx.setdefault("today", date.today())
     return templates.TemplateResponse(request, name, ctx)

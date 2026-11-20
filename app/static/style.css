@@ -22,7 +22,7 @@ button:disabled, button.htmx-request { opacity: .6; cursor: progress; }
 .muted { color: var(--muted); } .small { font-size: 12px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 14px; }
-.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 12px; margin-bottom: 14px; }
 .label { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .big { font-size: 24px; font-weight: 650; } .unit { font-size: 14px; font-weight: 400; color: var(--muted); }
 
@@ -116,3 +116,118 @@ main.login { max-width: 360px; margin-top: 12vh; }
 main.login form { display: grid; gap: 12px; }
 main.login h1 { margin: 0; font-size: 20px; }
 main.login label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+
+/* ============================ phones & touch ============================ */
+html { -webkit-text-size-adjust: 100%; }
+button, select, a, summary { touch-action: manipulation; }
+.show-sm, .show-touch, select.move, .tabbar { display: none; }
+
+/* Touch devices can't drag-and-drop: swap days with a menu instead. */
+@media (hover: none), (max-width: 700px) {
+  .handle, .hide-touch { display: none; }
+  select.move { display: inline-block; font-size: 13px; }
+  .show-touch { display: inline; }
+}
+
+@media (max-width: 700px) {
+  body { font-size: 16px; padding-bottom: calc(66px + env(safe-area-inset-bottom)); }
+  main { padding: 12px; }
+  h1 { font-size: 20px; }
+  .hide-sm { display: none !important; }
+  .show-sm { display: revert; }
+
+  /* iOS zooms into any field under 16px, and small controls are hard to hit */
+  input, select, button { font-size: 16px; min-height: 44px; }
+  button { padding: 10px 14px; }
+
+  /* top bar: brand + sync status + refresh; navigation moves to the bottom tab bar */
+  .topbar { flex-wrap: nowrap; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; gap: 10px; }
+  .topbar nav a { display: none; }
+  .sync { flex: 1; min-width: 0; justify-content: flex-end; gap: 8px; }
+  #sync-status { display: block; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                 font-size: 12px; text-align: right; }
+  #sync-status:has(.error) { white-space: normal; }
+  .btn-label { display: none; }
+  .sync button { min-width: 44px; padding: 8px; font-size: 20px; line-height: 1; }
+
+  .tabbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--card);
+            border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+  .tabbar a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px;
+              font-size: 11px; color: var(--muted); text-decoration: none; }
+  .tabbar a.on { color: var(--blue); font-weight: 600; }
+  .tabbar .ico { font-size: 20px; line-height: 1; }
+  .signout { margin-top: 24px; } .signout button { width: 100%; }
+
+  /* dashboard */
+  .cards { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { padding: 12px; }
+  .big { font-size: 21px; }
+  .charts { grid-template-columns: 1fr; }
+  .summary { grid-template-columns: 1fr 1fr; }
+  .scroll { overflow: visible; }
+  .scroll > table.grid.weeks { min-width: 0; font-size: 14px; }
+  table.weeks th, table.weeks td { padding: 10px 6px; }
+
+  /* week header + forms */
+  .week-nav { flex-wrap: wrap; }
+  .week-nav h1 { order: -1; width: 100%; font-size: 18px; }
+  .week-nav > a { padding: 8px 0; }
+  .meta { flex-direction: column; align-items: stretch; gap: 10px; }
+  .meta label { flex-direction: column; align-items: stretch; gap: 4px; }
+  .meta .actions { margin-left: 0; } .meta .actions button { flex: 1; }
+  .plan-range label, .add-race label, .manual-form label { width: 100%; }
+  .add-race, .manual-form { flex-direction: column; align-items: stretch; }
+  .add-race .grow, .manual-form .grow { min-width: 0; }
+  .add-race input, .add-race select, .manual-form input, .manual-form select, .plan-range input { width: 100%; }
+  .manual summary { padding: 8px 0; }
+  .filters a { display: inline-block; padding: 8px 14px; margin: 0 6px 6px 0; border: 1px solid var(--line);
+               border-radius: 999px; background: #fff; text-decoration: none; }
+  .filters a.active { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 600; }
+
+  /* tables become one card per row. The markup is unchanged, so autosave (hx-include="closest tr") still works. */
+  table.stack, table.stack tbody { display: block; width: 100%; background: none; border: 0; }
+  table.stack thead { display: none; }
+  .scroll > table.grid.stack { min-width: 0; }
+  table.stack tr { display: grid; gap: 10px; background: var(--card); border: 1px solid var(--line);
+                   border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  table.stack tr.today { background: #eff6ff; border-color: #bfdbfe; }
+  .grid.stack td, .grid.stack tr.today td { display: block; padding: 0; border: 0; background: none; min-width: 0 !important; }
+  table.stack td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 3px; font-size: 11px;
+                                       text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  table.stack td input, table.stack td select:not(.move) { width: 100% !important; min-width: 0 !important; }
+
+  /* week plan card */
+  table.plan tr { grid-template-columns: 1fr 1fr 92px;
+    grid-template-areas: "day day stat" "kind kind km" "note note note" "gym gym gym" "runs runs runs" "done done done"; }
+  .c-day { grid-area: day; display: flex; align-items: center; gap: 6px; font-size: 17px; min-width: 0; white-space: nowrap; }
+  .c-day .day-sep { display: none; }
+  .c-day select.move { margin-left: auto; flex: 0 1 128px; min-width: 96px; min-height: 36px; width: auto; }
+  .week-nav > a { padding: 4px 0; }
+  .week-nav { margin-bottom: 4px; }
+  .c-stat { grid-area: stat; justify-self: end; align-self: center; }
+  .c-kind { grid-area: kind; } .c-km { grid-area: km; } .c-note { grid-area: note; } .c-gym { grid-area: gym; }
+  .c-runs { grid-area: runs; } .c-done { grid-area: done; }
+  .c-runs, .c-done { font-size: 14px; }
+  table.plan td.c-runs::before, table.plan td.c-done::before { display: inline; margin: 0 8px 0 0; }
+  .c-done select.focus { margin: 4px 0 0; }
+
+  /* races card */
+  table.races tr { grid-template-columns: 1fr 1fr;
+    grid-template-areas: "name name" "date dist" "prio goal" "notes notes" "del del"; }
+  .c-name { grid-area: name; } .c-date { grid-area: date; } .c-dist { grid-area: dist; } .c-prio { grid-area: prio; }
+  .c-goal { grid-area: goal; } .c-notes { grid-area: notes; } table.races .c-del { grid-area: del; }
+  table.races .c-del button { width: 100%; }
+  table.races .c-del button::after { content: " Delete race"; }
+
+  /* activities card */
+  .acts select.focus { margin: 0; }
+  table.acts tr { grid-template-columns: 1.7fr .8fr 1fr .9fr;
+    grid-template-areas: "rec rec rec del" "name name name name" "type km time hr" "cat cat day2 day2" "focus focus focus focus"; }
+  table.acts td:not([class]) { grid-column: 1 / -1; }
+  .acts .c-rec { grid-area: rec; font-weight: 600; align-self: center; }
+  .acts .c-name { grid-area: name; }
+  .acts .c-type { grid-area: type; } .acts .c-km { grid-area: km; } .acts .c-time { grid-area: time; } .acts .c-hr { grid-area: hr; }
+  .acts .c-cat { grid-area: cat; } .acts .c-day2 { grid-area: day2; } .acts .c-focus { grid-area: focus; }
+  .acts .c-del { grid-area: del; justify-self: end; }
+  .acts .c-focus:not(:has(select)), .acts .c-del:not(:has(button)) { display: none; }
+}

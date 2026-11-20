@@ -49,22 +49,22 @@
   <div class="card"><h3>Cumulative km</h3><canvas id="cumulative"></canvas></div>
 </div>
 
-<div class="scroll"><table class="grid">
+<div class="scroll"><table class="grid weeks">
   <thead>
-    <tr><th>Wk</th><th>Week of</th><th>Phase</th><th>Planned km</th><th>Actual km</th><th>vs plan</th><th></th><th>Long run (act / plan)</th><th>Gym</th></tr>
+    <tr><th>Wk</th><th>Week of</th><th class="hide-sm">Phase</th><th>Planned km</th><th>Actual km</th><th>vs plan</th><th></th><th class="hide-sm">Long run (act / plan)</th><th class="hide-sm">Gym</th></tr>
   </thead>
   <tbody>
   {% for w in weeks %}
     <tr class="{{ w.state }}">
       <td>{{ w.week_no }}</td>
-      <td><a href="/week/{{ w.week_start }}">{{ w.start.strftime("%d %b") }}</a></td>
-      <td>{{ w.phase }}{% for r in w.races %}<div class="race-tag prio-{{ r.priority }}">🏁 {{ r.name }} · {{ r.date.strftime("%a %d %b") }}</div>{% endfor %}</td>
+      <td><a href="/week/{{ w.week_start }}">{{ w.start.strftime("%d %b") }}</a>{% for r in w.races %}<div class="race-tag show-sm prio-{{ r.priority }}">🏁 {{ r.name }}</div>{% endfor %}</td>
+      <td class="hide-sm">{{ w.phase }}{% for r in w.races %}<div class="race-tag prio-{{ r.priority }}">🏁 {{ r.name }} · {{ r.date.strftime("%a %d %b") }}</div>{% endfor %}</td>
       <td>{% if w.has_plan %}{{ w.planned_total|km }}{% else %}<span class="muted">not planned</span>{% endif %}</td>
       <td>{% if w.state != "future" %}{{ w.actual_total|km }}{% else %}<span class="muted">–</span>{% endif %}</td>
       <td>{% if w.status != "none" %}{{ w.diff|pct }}{% endif %}</td>
       <td>{% if w.status != "none" %}{{ m.status_badge(w.status) }}{% endif %}</td>
-      <td>{% if w.state != "future" %}{{ w.actual_long|km }} / {{ w.planned_long|km if w.has_plan else "–" }}{% elif w.has_plan %}<span class="muted">– / {{ w.planned_long|km }}</span>{% endif %}</td>
-      <td>{% if w.state != "future" %}{{ w.strength_count }}{% if w.strength_planned %} / {{ w.strength_planned }}{% endif %}{% endif %}</td>
+      <td class="hide-sm">{% if w.state != "future" %}{{ w.actual_long|km }} / {{ w.planned_long|km if w.has_plan else "–" }}{% elif w.has_plan %}<span class="muted">– / {{ w.planned_long|km }}</span>{% endif %}</td>
+      <td class="hide-sm">{% if w.state != "future" %}{{ w.strength_count }}{% if w.strength_planned %} / {{ w.strength_planned }}{% endif %}{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
@@ -74,8 +74,10 @@
 <script>
   const data = {{ chart_json|safe }};
   const STATUS = { on_track: "On track", ahead: "Ahead of plan", behind: "Behind plan", none: "" };
+  const touch = !matchMedia("(hover: hover)").matches;  // phones: a tap shows the tooltip instead of jumping away
   const common = {
     responsive: true,
+    aspectRatio: window.innerWidth < 640 ? 1.25 : 2,
     interaction: { mode: "index", intersect: false },
     plugins: {
       legend: { position: "bottom" },
@@ -89,7 +91,7 @@
               const d = data.diffs[i];
               lines.push(`${STATUS[data.statuses[i]]} (${d > 0 ? "+" : ""}${d}%)`);
             }
-            lines.push("Click to open & edit this week");
+            if (!touch) lines.push("Click to open & edit this week");
             return lines;
           },
         },
@@ -97,6 +99,7 @@
     },
     // Click anywhere in a week's column (not just on the bar itself) to open that week.
     onClick: (evt, _elements, chart) => {
+      if (touch) return;
       const hit = chart.getElementsAtEventForMode(evt, "index", { intersect: false }, false);
       if (hit.length) window.location.href = "/week/" + data.week_starts[hit[0].index];
     },

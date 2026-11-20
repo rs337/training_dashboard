@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Training">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>{% block title %}Training dashboard{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css?v={{ static_v() }}">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
@@ -21,18 +25,30 @@
         {% if last_sync_at %}Last synced {{ last_sync_at }}{% else %}Never synced{% endif %}
       </span>
       <button hx-post="/refresh" hx-target="#sync-status" hx-swap="innerHTML"
-              hx-disabled-elt="this" hx-indicator="#sync-status">
-        ⟳ Refresh from Garmin
+              hx-disabled-elt="this" hx-indicator="#sync-status" aria-label="Refresh from Garmin">
+        ⟳<span class="btn-label"> Refresh from Garmin</span>
       </button>
       {% if auth_enabled() %}
-      <form method="post" action="/logout" class="inline"><button class="secondary" type="submit">Sign out</button></form>
+      <form method="post" action="/logout" class="inline hide-sm"><button class="secondary" type="submit">Sign out</button></form>
       {% endif %}
     </div>
   </header>
   {% if sync_error %}
     <div class="banner error sync-banner">⚠ {{ sync_error }}</div>
   {% endif %}
-  <main>{% block content %}{% endblock %}</main>
+  <main>
+    {% block content %}{% endblock %}
+    {% if auth_enabled() %}
+    <form method="post" action="/logout" class="signout show-sm"><button class="secondary" type="submit">Sign out</button></form>
+    {% endif %}
+  </main>
+  {% set path = request.url.path %}
+  <nav class="tabbar" aria-label="Main">
+    <a href="/" class="{{ 'on' if path == '/' }}"><span class="ico">📊</span>Dashboard</a>
+    {% if this_week %}<a href="/week/{{ this_week }}" class="{{ 'on' if path.startswith('/week/') }}"><span class="ico">📅</span>Week</a>{% endif %}
+    <a href="/races" class="{{ 'on' if path == '/races' }}"><span class="ico">🏁</span>Races</a>
+    <a href="/activities" class="{{ 'on' if path == '/activities' }}"><span class="ico">🏃</span>Activities</a>
+  </nav>
   <script>
     // After a plan edit the server may force the mileage (e.g. Rest = 0); reflect it in the box.
     document.body.addEventListener("distSet", (e) => {

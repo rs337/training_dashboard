@@ -31,29 +31,29 @@
 {% endif %}
 
 <h2>Your races</h2>
-<div class="scroll"><table class="grid races">
+<div class="scroll"><table class="grid races stack">
   <thead>
     <tr><th>Race</th><th>Date</th><th>Distance (km)</th><th>Priority</th><th>Goal time</th><th>Notes</th><th></th></tr>
   </thead>
   <tbody>
   {% for r in races %}
     <tr class="{{ 'past' if r.days_to_go < 0 else '' }}">
-      <td><input name="name" value="{{ r.name }}" class="wide" {{ race_attrs(r) }}>
+      <td class="c-name"><input name="name" value="{{ r.name }}" class="wide" {{ race_attrs(r) }}>
         {% if r.is_end %}<div class="muted small">🏁 plan ends here</div>{% endif %}
         {% if r.days_to_go >= 0 %}<div class="muted small">{{ r.days_to_go }} days to go</div>{% else %}<div class="muted small">{{ -r.days_to_go }} days ago</div>{% endif %}</td>
-      <td><input type="date" name="race_date" value="{{ r.race_date }}" {{ race_attrs(r) }}></td>
-      <td><input type="number" name="distance_km" step="0.001" min="0" value="{{ r.distance_km if r.distance_km else '' }}"
+      <td class="c-date" data-label="Date"><input type="date" name="race_date" value="{{ r.race_date }}" {{ race_attrs(r) }}></td>
+      <td class="c-dist" data-label="Distance (km)"><input type="number" name="distance_km" step="0.001" min="0" value="{{ r.distance_km if r.distance_km else '' }}"
                  list="distances" class="num" placeholder="km" {{ race_attrs(r) }}></td>
-      <td>
+      <td class="c-prio" data-label="Priority">
         <select name="priority" {{ race_attrs(r) }}>
           {% for p, label in [("A", "A – goal race"), ("B", "B – tune-up"), ("C", "C – just for fun")] %}
             <option value="{{ p }}" {% if r.priority == p %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </td>
-      <td><input name="goal_time" value="{{ r.goal_time }}" class="num" placeholder="3:45:00" {{ race_attrs(r) }}></td>
-      <td><input name="notes" value="{{ r.notes }}" class="wide" {{ race_attrs(r) }}></td>
-      <td><button type="button" class="secondary" hx-post="/races/{{ r.id }}/delete" hx-swap="none"
+      <td class="c-goal" data-label="Goal time"><input name="goal_time" value="{{ r.goal_time }}" class="num" placeholder="3:45:00" {{ race_attrs(r) }}></td>
+      <td class="c-notes" data-label="Notes"><input name="notes" value="{{ r.notes }}" class="wide" {{ race_attrs(r) }}></td>
+      <td class="c-del"><button type="button" class="secondary" hx-post="/races/{{ r.id }}/delete" hx-swap="none"
                   hx-confirm="Delete {{ r.name }}? Its day in the plan goes back to Rest.">✕</button></td>
     </tr>
   {% else %}
