@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Sign in · Training dashboard</title>
+  <link rel="stylesheet" href="/static/style.css?v={{ static_v() }}">
+</head>
+<body>
+  <main class="login">
+    <form class="card" method="post" action="/login">
+      <h1>🏃 Training</h1>
+      {% if error %}<div class="banner error">{{ error }}</div>{% endif %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <label>Password
+        <input class="wide" type="password" name="password" autocomplete="current-password" autofocus required>
+      </label>
+      <button type="submit">Sign in</button>
+    </form>
+  </main>
+</body>
+</html>

@@ -1,0 +1,80 @@
+{% macro status_badge(status) %}
+  <span class="badge st-{{ status }}">{{ STATUS_LABELS.get(status, status) }}</span>
+{% endmacro %}
+
+{% macro day_badge(status) %}
+  {% set labels = {"done": "✓ Done", "short": "Short", "over": "Over", "missed": "Missed",
+                   "today": "Today", "unplanned": "Extra run"} %}
+  {% if labels.get(status) %}<span class="badge day-{{ status }}">{{ labels[status] }}</span>{% endif %}
+{% endmacro %}
+
+{% macro summary_card(w) %}
+  <div class="card summary" id="week-summary">
+    <div>
+      <div class="label">Planned {% if w.state == "current" and w.has_plan %}(to date){% endif %}</div>
+      <div class="big">{{ w.basis_planned|km }} km</div>
+      {% if w.state == "current" %}<div class="muted">week total {{ w.planned_total|km }} km</div>{% endif %}
+    </div>
+    <div>
+      <div class="label">Actual runs</div>
+      <div class="big">{{ w.basis_actual|km if w.basis_actual is not none else "–" }}{% if w.basis_actual is not none %} km{% endif %}</div>
+    </div>
+    <div>
+      <div class="label">vs plan</div>
+      <div class="big">{{ w.diff|pct }}</div>
+      {{ status_badge(w.status) }}
+    </div>
+    <div>
+      <div class="label">Long run</div>
+      <div class="big">{{ w.actual_long|km }} / {{ w.planned_long|km }} km</div>
+    </div>
+    <div>
+      <div class="label">Strength sessions</div>
+      <div class="big">{{ w.strength_count }}{% if w.strength_planned %} / {{ w.strength_planned }}{% endif %}</div>
+    </div>
+  </div>
+{% endmacro %}
+
+{% macro focus_select(a) %}
+  <select name="focus" hx-post="/activity/{{ a.id }}/focus" hx-swap="none" hx-trigger="change" class="focus">
+    <option value="">tag…</option>
+    {% for f in STRENGTH_FOCUS %}
+      <option value="{{ f }}" {% if a.strength_focus == f %}selected{% endif %}>{{ f }} body</option>
+    {% endfor %}
+  </select>
+{% endmacro %}
+
+{# One row per activity (Garmin or manual), with the controls for fixing how it is classified. #}
+{% macro activity_table(activities, empty_msg="No activities.") %}
+<div class="scroll"><table class="grid">
+  <thead><tr><th>Recorded</th><th>Type</th><th>Name</th><th>km</th><th>Time</th><th>Avg HR</th><th>Counts as</th><th>Counts on</th><th>Strength focus</th><th></th></tr></thead>
+  <tbody>
+  {% for a in activities %}
+    <tr class="cat-{{ a.category }}">
+      <td>{{ a.start_local[:16] if a.source != "manual" else a.day }}{% if a.source == "manual" %} <span class="badge manual-badge">manual</span>{% endif %}</td>
+      <td>{{ a.type_key|replace("_", " ") }}</td>
+      <td>{{ a.name }}</td>
+      <td>{{ a.km|km if a.km > 0.1 else "–" }}</td>
+      <td>{{ a.duration_s|duration }}</td>
+      <td>{{ a.avg_hr|int if a.avg_hr else "–" }}</td>
+      <td>
+        <select name="category" hx-post="/activity/{{ a.id }}/category" hx-trigger="change" hx-swap="none">
+          <option value="" {% if not a.category_override %}selected{% endif %}>auto ({{ a.auto_category }})</option>
+          {% for c in CATEGORIES %}<option value="{{ c }}" {% if a.category_override == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+        </select>
+      </td>
+      <td>
+        <input type="date" name="day" value="{{ a.eff_day }}" class="{{ 'moved' if a.day_override else '' }}"
+               title="{% if a.day_override %}Recorded on {{ a.day }}. Clear the date to put it back.{% else %}Change to count this on another day{% endif %}"
+               hx-post="/activity/{{ a.id }}/day" hx-trigger="change" hx-swap="none">
+      </td>
+      <td>{% if a.category == "strength" %}{{ focus_select(a) }}{% endif %}</td>
+      <td>{% if a.source == "manual" %}<button type="button" class="secondary" hx-post="/activity/{{ a.id }}/delete"
+            hx-swap="none" hx-confirm="Delete this manual activity?">✕</button>{% endif %}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="10" class="muted">{{ empty_msg }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endmacro %}

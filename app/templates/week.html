@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Week {{ w.week_no }} · Training{% endblock %}
+
+{# Every plan control in a row posts the whole row (type, km, note, strength) together. #}
+{% macro save_attrs(w, d) %}hx-post="/week/{{ w.week_start }}/day/{{ d.dow }}" hx-trigger="change delay:300ms" hx-include="closest tr" hx-swap="none"{% endmacro %}
+
+{% block content %}
+<div class="week-nav">
+  {% if prev_week %}<a href="/week/{{ prev_week.week_start }}">← Week {{ prev_week.week_no }}</a>{% else %}<span></span>{% endif %}
+  <h1>Week {{ w.week_no }} <span class="muted">{{ w.start.strftime("%d %b") }} – {{ w.end.strftime("%d %b %Y") }}</span>
+    {% if w.state == "current" %}<span class="badge st-on_track">This week</span>{% endif %}</h1>
+  {% if next_week %}<a href="/week/{{ next_week.week_start }}">Week {{ next_week.week_no }} →</a>{% else %}<span></span>{% endif %}
+</div>
+
+{% for r in w.races %}
+<div class="banner race prio-{{ r.priority }}">🏁 <strong>{{ r.name }}</strong> · {{ r.date.strftime("%A %d %b") }}
+  {% if r.distance_km %}· {{ r.distance_km|km }} km{% endif %}{% if r.goal_time %}· goal {{ r.goal_time }}{% endif %}
+  <span class="muted">({{ r.priority }}-race)</span></div>
+{% endfor %}
+
+{% if not w.has_plan %}
+<div class="banner">
+  Nothing planned for this week yet. Pick a workout type and distance for each day below
+  {% if prev_week %}, or <button class="link" hx-post="/week/{{ w.week_start }}/copy-previous">copy week {{ prev_week.week_no }}'s plan</button> as a starting point{% endif %}.
+</div>
+{% endif %}
+
+<div id="week-summary-wrap">{{ m.summary_card(w) }}</div>
+
+<form class="card meta" hx-post="/week/{{ w.week_start }}/meta" hx-trigger="change" hx-swap="none">
+  <label>Phase <input name="phase" value="{{ w.phase }}"></label>
+  <label class="grow">Notes <input name="notes" value="{{ w.notes }}" placeholder="Anything for this week…"></label>
+  <span class="actions">
+    {% if prev_week and w.has_plan %}
+      <button type="button" class="secondary" hx-post="/week/{{ w.week_start }}/copy-previous"
+              hx-confirm="Replace this week's plan with week {{ prev_week.week_no }}'s plan?">Copy last week</button>
+    {% endif %}
+    {% if w.has_plan %}
+      <button type="button" class="secondary" hx-post="/week/{{ w.week_start }}/clear"
+              hx-confirm="Clear every planned day in this week?">Clear week</button>
+    {% endif %}
+  </span>
+</form>
+
+<div class="scroll"><table class="grid plan">
+  <thead>
+    <tr><th>Day</th><th>Workout</th><th>km</th><th>Note</th><th>Gym planned</th><th>Status</th><th>Runs (Garmin)</th><th>Gym done</th></tr>
+  </thead>
+  <tbody>
+  {% for d in w.days %}
+    <tr class="{% if d.is_today %}today{% endif %}" data-dow="{{ d.dow }}">
+      <td class="day">
+        <span class="handle" draggable="true" data-dow="{{ d.dow }}" title="Drag onto another day to swap workouts">⠿</span>
+        <strong>{{ d.label }}</strong><br><span class="muted">{{ d.date.strftime("%d %b") }}</span>
+      </td>
+      <td>
+        <select name="kind" class="kind kind-{{ d.plan.kind }}" {{ save_attrs(w, d) }}
+                onchange="this.className='kind kind-'+this.value">
+          {% for value, label in PLAN_KINDS %}
+            <option value="{{ value }}" {% if d.plan.kind == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </td>
+      <td><input id="dist-{{ d.dow }}" name="distance_km" type="number" step="0.1" min="0" inputmode="decimal"
+                 value="{{ d.plan.distance_km|km if d.plan.distance_km else '' }}" placeholder="0" class="num" {{ save_attrs(w, d) }}></td>
+      <td><input name="note" value="{{ d.plan.note }}" class="wide" placeholder="e.g. 6×800m, last 3 km at HM pace" {{ save_attrs(w, d) }}></td>
+      <td>
+        <select name="strength_focus" {{ save_attrs(w, d) }}>
+          <option value="">–</option>
+          {% for f in STRENGTH_FOCUS %}<option value="{{ f }}" {% if d.plan.strength_focus == f %}selected{% endif %}>{{ f }} body</option>{% endfor %}
+        </select>
+      </td>
+      <td><span id="day-status-{{ d.dow }}">{{ m.day_badge(d.status) }}</span></td>
+      <td>
+        {% for a in d.runs %}
+          <div class="act"><strong>{{ a.km|km }} km</strong> · {{ a.duration_s|duration }} · {{ a.pace_s_per_km|pace }}
+            {% if a.avg_hr %}· {{ a.avg_hr|int }} bpm{% endif %}</div>
+        {% else %}<span class="muted">–</span>{% endfor %}
+      </td>
+      <td>
+        {% for a in d.strength %}
+          <div class="act">{{ a.minutes|int }} min {{ m.focus_select(a) }}</div>
+        {% else %}<span class="muted">–</span>{% endfor %}
+        {% if d.extras %}
+          <details class="extras"><summary>{{ d.extras|length }} extra</summary>
+            {% for a in d.extras %}<div class="muted small">{{ a.type_key|replace("_", " ") }} · {{ a.minutes|int }} min</div>{% endfor %}
+          </details>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="muted small">Changes save automatically. <strong>Drag ⠿ onto another day</strong> to swap two workouts, or to move one onto a rest day. Rest and Cross-train have no distance. Extras (warm-up bikes, rowing, walks…) are stored but never scored.</p>
+
+<h2>Garmin activities this week</h2>
+<p class="muted small">Everything Garmin recorded for this week. Change “Counts as” if an activity was classified wrongly (e.g. a run logged as something else), and tag gym sessions as upper, lower or full body.
+Only runs are scored against your distance plan.</p>
+{{ m.activity_table(w.activities, "No Garmin activities this week yet. Click “Refresh from Garmin” to pull the latest.") }}
+
+<details class="card manual">
+  <summary>＋ Add an activity Garmin didn't record</summary>
+  <form method="post" action="/week/{{ w.week_start }}/manual" class="manual-form">
+    <label>Day
+      <select name="day">
+        {% for d in w.days %}<option value="{{ d.date.isoformat() }}" {% if d.is_today %}selected{% endif %}>{{ d.label }} {{ d.date.strftime("%d %b") }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Type
+      <select name="kind"><option value="run">Run</option><option value="strength">Strength</option><option value="other">Other (not scored)</option></select>
+    </label>
+    <label>km <input name="distance_km" type="number" step="0.01" min="0" class="num" placeholder="0"></label>
+    <label>Minutes <input name="minutes" type="number" step="1" min="0" class="num" placeholder="0"></label>
+    <label>Avg HR <input name="avg_hr" type="number" step="1" min="0" class="num" placeholder="–"></label>
+    <label class="grow">Name <input name="name" placeholder="e.g. Treadmill run (watch died)"></label>
+    <button type="submit">Add</button>
+  </form>
+  <p class="muted small">Manual activities are never changed by Garmin syncs. You can delete them again from the table above.</p>
+</details>
+
+<script>
+  // Drag a day's ⠿ handle onto another day to swap their planned workouts.
+  (() => {
+    const WEEK = "{{ w.week_start }}";
+    const rows = document.querySelectorAll("table.plan tbody tr");
+    const clear = () => rows.forEach((r) => r.classList.remove("dragging", "dragover"));
+    document.querySelectorAll(".handle").forEach((h) => {
+      h.addEventListener("dragstart", (e) => {
+        e.dataTransfer.setData("text/plain", "day:" + h.dataset.dow);
+        e.dataTransfer.effectAllowed = "move";
+        const row = h.closest("tr");
+        e.dataTransfer.setDragImage(row, 20, 20);
+        row.classList.add("dragging");
+      });
+      h.addEventListener("dragend", clear);
+    });
+    rows.forEach((row) => {
+      row.addEventListener("dragover", (e) => { e.preventDefault(); row.classList.add("dragover"); });
+      row.addEventListener("dragleave", () => row.classList.remove("dragover"));
+      row.addEventListener("drop", async (e) => {
+        e.preventDefault(); clear();
+        const data = e.dataTransfer.getData("text/plain");
+        if (!data.startsWith("day:")) return;
+        const from = data.slice(4), to = row.dataset.dow;
+        if (from === to) return;
+        await fetch(`/week/${WEEK}/swap`, { method: "POST", body: new URLSearchParams({ a: from, b: to }) });
+        location.reload();
+      });
+    });
+  })();
+</script>
+{% endblock %}

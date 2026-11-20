@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+node_modules/
+.next/
+.env*
+*.db
+*.sqlite
+.garminconnect/
+.DS_Store
+data/
+!.env.example

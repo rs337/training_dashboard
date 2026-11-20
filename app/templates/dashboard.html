@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block head %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>{% endblock %}
+
+{% block content %}
+<div class="cards">
+  {% for r in races %}
+  <div class="card">
+    <div class="label">{{ r.name }} <span class="prio prio-{{ r.priority }}">{{ r.priority }}</span></div>
+    <div class="big">{{ r.days_to_go }} <span class="unit">days</span></div>
+    <div class="muted">{{ r.date.strftime("%a %d %b %Y") }}{% if r.distance_km %} · {{ r.distance_km|km }} km{% endif %}{% if r.goal_time %} · goal {{ r.goal_time }}{% endif %}</div>
+  </div>
+  {% else %}
+  <div class="card"><div class="label">Races</div><div class="big muted">None yet</div><a class="cta" href="/races">Add a race →</a></div>
+  {% endfor %}
+  <div class="card">
+    <div class="label">Plan to date</div>
+    {% if overview.planned_to_date %}
+      <div class="big">{{ overview.actual_to_date|km }} <span class="unit">/ {{ overview.planned_to_date|km }} km</span></div>
+      <div>{{ m.status_badge(overview.status) }} <span class="muted">{{ overview.diff|pct }} vs plan</span></div>
+    {% else %}
+      <div class="big">–</div><div class="muted">Plan a week to start tracking</div>
+    {% endif %}
+  </div>
+  {% for label, wk in [("This week", overview.current), ("Next week", overview.next)] %}
+    {% if wk %}
+    <div class="card">
+      <div class="label">{{ label }} · W{{ wk.week_no }} · {{ wk.phase }}</div>
+      {% if wk.has_plan %}
+        {% if wk.state == "current" %}
+          <div class="big">{{ wk.basis_actual|km }} <span class="unit">/ {{ wk.basis_planned|km }} km so far</span></div>
+          <div class="muted">week plan {{ wk.planned_total|km }} km</div>
+          <div>{{ m.status_badge(wk.status) }} <a href="/week/{{ wk.week_start }}">Open week →</a></div>
+        {% else %}
+          <div class="big">{{ wk.planned_total|km }} <span class="unit">km planned</span></div>
+          <a href="/week/{{ wk.week_start }}">Open week →</a>
+        {% endif %}
+      {% else %}
+        <div class="big muted">Not planned yet</div>
+        <a class="cta" href="/week/{{ wk.week_start }}">Plan this week →</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  {% endfor %}
+</div>
+
+<div class="charts">
+  <div class="card"><h3>Weekly km</h3><canvas id="weekly"></canvas></div>
+  <div class="card"><h3>Cumulative km</h3><canvas id="cumulative"></canvas></div>
+</div>
+
+<div class="scroll"><table class="grid">
+  <thead>
+    <tr><th>Wk</th><th>Week of</th><th>Phase</th><th>Planned km</th><th>Actual km</th><th>vs plan</th><th></th><th>Long run (act / plan)</th><th>Gym</th></tr>
+  </thead>
+  <tbody>
+  {% for w in weeks %}
+    <tr class="{{ w.state }}">
+      <td>{{ w.week_no }}</td>
+      <td><a href="/week/{{ w.week_start }}">{{ w.start.strftime("%d %b") }}</a></td>
+      <td>{{ w.phase }}{% for r in w.races %}<div class="race-tag prio-{{ r.priority }}">🏁 {{ r.name }} · {{ r.date.strftime("%a %d %b") }}</div>{% endfor %}</td>
+      <td>{% if w.has_plan %}{{ w.planned_total|km }}{% else %}<span class="muted">not planned</span>{% endif %}</td>
+      <td>{% if w.state != "future" %}{{ w.actual_total|km }}{% else %}<span class="muted">–</span>{% endif %}</td>
+      <td>{% if w.status != "none" %}{{ w.diff|pct }}{% endif %}</td>
+      <td>{% if w.status != "none" %}{{ m.status_badge(w.status) }}{% endif %}</td>
+      <td>{% if w.state != "future" %}{{ w.actual_long|km }} / {{ w.planned_long|km if w.has_plan else "–" }}{% elif w.has_plan %}<span class="muted">– / {{ w.planned_long|km }}</span>{% endif %}</td>
+      <td>{% if w.state != "future" %}{{ w.strength_count }}{% if w.strength_planned %} / {{ w.strength_planned }}{% endif %}{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="muted small">Current-week status compares actual vs planned for finished days only. Within ±10% counts as on track. Weeks with no plan aren't scored.</p>
+
+<script>
+  const data = {{ chart_json|safe }};
+  const STATUS = { on_track: "On track", ahead: "Ahead of plan", behind: "Behind plan", none: "" };
+  const common = {
+    responsive: true,
+    interaction: { mode: "index", intersect: false },
+    plugins: {
+      legend: { position: "bottom" },
+      tooltip: {
+        callbacks: {
+          title: (items) => data.titles[items[0].dataIndex],
+          label: (item) => item.raw === null ? null : `${item.dataset.label}: ${item.formattedValue} km`,
+          afterBody: (items) => {
+            const i = items[0].dataIndex, lines = [];
+            if (data.statuses[i] !== "none") {
+              const d = data.diffs[i];
+              lines.push(`${STATUS[data.statuses[i]]} (${d > 0 ? "+" : ""}${d}%)`);
+            }
+            lines.push("Click to open & edit this week");
+            return lines;
+          },
+        },
+      },
+    },
+    // Click anywhere in a week's column (not just on the bar itself) to open that week.
+    onClick: (evt, _elements, chart) => {
+      const hit = chart.getElementsAtEventForMode(evt, "index", { intersect: false }, false);
+      if (hit.length) window.location.href = "/week/" + data.week_starts[hit[0].index];
+    },
+    onHover: (evt, _elements, chart) => {
+      const hit = chart.getElementsAtEventForMode(evt, "index", { intersect: false }, false);
+      evt.native.target.style.cursor = hit.length ? "pointer" : "default";
+    },
+  };
+  new Chart(document.getElementById("weekly"), {
+    type: "bar",
+    data: { labels: data.labels, datasets: [
+      { label: "Planned", data: data.planned, backgroundColor: "#cbd5e1" },
+      { label: "Actual runs", data: data.actual, backgroundColor: "#2563eb" } ] },
+    options: common });
+  new Chart(document.getElementById("cumulative"), {
+    type: "line",
+    data: { labels: data.labels, datasets: [
+      { label: "Planned", data: data.planned_cum, borderColor: "#94a3b8", borderDash: [6, 4], pointRadius: 0 },
+      { label: "Actual", data: data.actual_cum, borderColor: "#2563eb", backgroundColor: "#2563eb", pointRadius: 2 } ] },
+    options: common });
+</script>
+{% endblock %}

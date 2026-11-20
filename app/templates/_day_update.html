@@ -1,0 +1,5 @@
+{% import "_macros.html" as m %}
+{# Response to a plan edit: nothing is swapped in place (hx-swap="none"); these
+   out-of-band fragments refresh the parts of the page the edit affects. #}
+<div id="week-summary-wrap" hx-swap-oob="true">{{ m.summary_card(w) }}</div>
+<span id="day-status-{{ day.dow }}" hx-swap-oob="true">{{ m.day_badge(day.status) }}</span>

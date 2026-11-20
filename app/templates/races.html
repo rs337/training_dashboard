@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Races &amp; plan · Training{% endblock %}
+
+{# A row posts all of its fields together; the server then reloads the page. #}
+{% macro race_attrs(r) %}hx-post="/races/{{ r.id }}" hx-trigger="change" hx-include="closest tr" hx-swap="none"{% endmacro %}
+
+{% block content %}
+<h1>Races &amp; plan</h1>
+
+<div class="card plan-range">
+  <div>
+    <div class="label">Plan range</div>
+    <div class="big">{{ info.weeks }} <span class="unit">weeks</span></div>
+    <div class="muted">
+      {{ info.start.strftime("%a %d %b %Y") }} → week of {{ info.end.strftime("%d %b %Y") }}
+      {% if target %}· builds to <strong>{{ target.name }}</strong>{% endif %}
+    </div>
+  </div>
+  <label>Plan starts (any day, snaps to that week's Monday)
+    <input type="date" name="plan_start" value="{{ info.start.isoformat() }}"
+           hx-post="/plan/settings" hx-trigger="change" hx-swap="none">
+  </label>
+</div>
+<p class="muted small">
+  The plan always ends in the week of your <strong>latest A-race</strong> (or the latest race if none is marked A).
+  Add, move or re-prioritise a race and weeks are created or trimmed to fit. Weeks that already have
+  planned workouts are never deleted automatically.
+</p>
+{% if info.outside_with_plan %}
+  <div class="banner">{{ info.outside_with_plan }} week(s) outside the plan range still have planned workouts, so they were kept.</div>
+{% endif %}
+
+<h2>Your races</h2>
+<div class="scroll"><table class="grid races">
+  <thead>
+    <tr><th>Race</th><th>Date</th><th>Distance (km)</th><th>Priority</th><th>Goal time</th><th>Notes</th><th></th></tr>
+  </thead>
+  <tbody>
+  {% for r in races %}
+    <tr class="{{ 'past' if r.days_to_go < 0 else '' }}">
+      <td><input name="name" value="{{ r.name }}" class="wide" {{ race_attrs(r) }}>
+        {% if r.is_end %}<div class="muted small">🏁 plan ends here</div>{% endif %}
+        {% if r.days_to_go >= 0 %}<div class="muted small">{{ r.days_to_go }} days to go</div>{% else %}<div class="muted small">{{ -r.days_to_go }} days ago</div>{% endif %}</td>
+      <td><input type="date" name="race_date" value="{{ r.race_date }}" {{ race_attrs(r) }}></td>
+      <td><input type="number" name="distance_km" step="0.001" min="0" value="{{ r.distance_km if r.distance_km else '' }}"
+                 list="distances" class="num" placeholder="km" {{ race_attrs(r) }}></td>
+      <td>
+        <select name="priority" {{ race_attrs(r) }}>
+          {% for p, label in [("A", "A – goal race"), ("B", "B – tune-up"), ("C", "C – just for fun")] %}
+            <option value="{{ p }}" {% if r.priority == p %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </td>
+      <td><input name="goal_time" value="{{ r.goal_time }}" class="num" placeholder="3:45:00" {{ race_attrs(r) }}></td>
+      <td><input name="notes" value="{{ r.notes }}" class="wide" {{ race_attrs(r) }}></td>
+      <td><button type="button" class="secondary" hx-post="/races/{{ r.id }}/delete" hx-swap="none"
+                  hx-confirm="Delete {{ r.name }}? Its day in the plan goes back to Rest.">✕</button></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7" class="muted">No races yet. Add one below.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+
+<h2>Add a race</h2>
+<form class="card add-race" method="post" action="/races">
+  <label>Name <input name="name" required placeholder="e.g. Dublin 10K"></label>
+  <label>Date <input type="date" name="race_date" required></label>
+  <label>Distance (km) <input type="number" name="distance_km" step="0.001" min="0" list="distances" placeholder="42.195" class="num"></label>
+  <label>Priority
+    <select name="priority">
+      <option value="A">A – goal race</option><option value="B" selected>B – tune-up</option><option value="C">C – just for fun</option>
+    </select>
+  </label>
+  <label>Goal time <input name="goal_time" placeholder="3:45:00" class="num"></label>
+  <label class="grow">Notes <input name="notes"></label>
+  <button type="submit">Add race</button>
+</form>
+<datalist id="distances">
+  <option value="5"></option><option value="10"></option><option value="21.0975" label="Half marathon"></option>
+  <option value="42.195" label="Marathon"></option><option value="50"></option>
+</datalist>
+{% endblock %}

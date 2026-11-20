@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Training dashboard{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css?v={{ static_v() }}">
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="topbar">
+    <nav>
+      <strong>🏃 Training</strong>
+      <a href="/">Dashboard</a>
+      <a href="/races">Races &amp; plan</a>
+      <a href="/activities">Activities</a>
+    </nav>
+    <div class="sync">
+      <span id="sync-status" class="muted">
+        {% if last_sync_at %}Last synced {{ last_sync_at }}{% else %}Never synced{% endif %}
+      </span>
+      <button hx-post="/refresh" hx-target="#sync-status" hx-swap="innerHTML"
+              hx-disabled-elt="this" hx-indicator="#sync-status">
+        ⟳ Refresh from Garmin
+      </button>
+      {% if auth_enabled() %}
+      <form method="post" action="/logout" class="inline"><button class="secondary" type="submit">Sign out</button></form>
+      {% endif %}
+    </div>
+  </header>
+  {% if sync_error %}
+    <div class="banner error sync-banner">⚠ {{ sync_error }}</div>
+  {% endif %}
+  <main>{% block content %}{% endblock %}</main>
+  <script>
+    // After a plan edit the server may force the mileage (e.g. Rest = 0); reflect it in the box.
+    document.body.addEventListener("distSet", (e) => {
+      const el = document.getElementById("dist-" + e.detail.dow);
+      if (el) el.value = e.detail.value;
+    });
+
+    {% if sync_stale %}
+    // Data looks stale: sync quietly in the background and only reload if something new arrived.
+    (async () => {
+      const status = document.getElementById("sync-status");
+      status.textContent = "Checking Garmin…";
+      try {
+        const res = await (await fetch("/sync", { method: "POST" })).json();
+        if (res.ok && res.new > 0) { location.reload(); return; }
+        status.textContent = res.ok ? "Up to date with Garmin" : "Couldn't sync: " + res.error;
+        if (!res.ok) status.classList.add("error-text");
+      } catch (err) {
+        status.textContent = "Couldn't reach the server";
+      }
+    })();
+    {% endif %}
+  </script>
+</body>
+</html>

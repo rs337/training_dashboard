@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Activities · Training{% endblock %}
+
+{% block content %}
+<h1>Activities</h1>
+<p class="filters">
+  Show:
+  <a href="/activities" class="{{ '' if category else 'active' }}">all</a>
+  {% for c in CATEGORIES %}<a href="/activities?category={{ c }}" class="{{ 'active' if category == c else '' }}">{{ c }}</a>{% endfor %}
+</p>
+{{ m.activity_table(activities, "No activities yet. Click “Refresh from Garmin”.") }}
+{% endblock %}
